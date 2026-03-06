@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git remote add origin https://github.com/vz7478598-code/My-projects.git)",
+      "Bash(git add .gitignore)",
+      "Bash(git commit:*)",
+      "Bash(git add \"Документация ии/\" \"Документация этап 1/\" \"Инструкция начало .docx\")",
+      "Bash(git add .claude/)"
+    ]
+  }
+}
