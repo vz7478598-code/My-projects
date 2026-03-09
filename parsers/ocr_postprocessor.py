@@ -1,81 +1,56 @@
-"""Постобработка текста после OCR: исправление типичных ошибок Tesseract."""
+"""Post-processing module for cleaning raw OCR text output."""
 
 import re
 
-# ---------------------------------------------------------------------------
-# Символы-заменители: кириллица, которую Tesseract ставит вместо цифр
-# ---------------------------------------------------------------------------
+# Digit-like chars: real digits + Cyrillic/Latin OCR lookalikes
+_DL = r'[0-9ОоЗбlISB]'
+# Date-specific digit-like (subset)
+_DD = r'[0-9ОоЗ]'
 
-_CYRILLIC_TO_DIGIT = {
-    "О": "0",  # заглавная кириллическая О → 0
-    "о": "0",  # строчная кириллическая о → 0
-    "З": "3",  # заглавная кириллическая З → 3
+# Amount: optional minus (incl. Unicode minus sign), digit-likes with spaces, decimal, 2 digit-likes
+_RE_AMOUNT = re.compile(rf'[-\u2212]?{_DL}(?:{_DL}|\s)*[.,]{_DL}{{2}}')
+
+# Date: DD.MM.YYYY / DD/MM/YYYY / DD-MM-YYYY
+_RE_DATE = re.compile(rf'{_DD}{{1,2}}[./-]{_DD}{{1,2}}[./-][0-9]{{2,4}}')
+
+_AMOUNT_CHAR_MAP = {
+    'О': '0', 'о': '0',
+    'З': '3',
+    'б': '6',
+    'l': '1',
+    'I': '1',
+    'S': '5',
+    'B': '8',
+    '\u2212': '-',  # Unicode minus sign → hyphen-minus
 }
 
-# Символьный класс для regex: цифра или кириллический «двойник»
-_D = r"[0-9ОоЗ]"
-
-# ---------------------------------------------------------------------------
-# Регулярные выражения
-# ---------------------------------------------------------------------------
-
-# Дата DD.MM.YYYY / DD/MM/YYYY / DD-MM-YYYY
-# В позициях дня и месяца допускаем кириллицу-заменитель.
-_RE_DATE = re.compile(
-    rf"{_D}{{1,2}}[./-]{_D}{{1,2}}[./-][0-9]{{2,4}}"
-)
-
-# Денежная сумма: [-]целая_часть[,.]XX
-# Пробел внутри целой части — разделитель тысяч (1 250).
-_RE_AMOUNT = re.compile(
-    rf"-?{_D}{_D}[ ]*[.,]{_D}{{2}}"
-)
-
-# Нормализация пробелов
-_RE_MULTI_SPACE = re.compile(r"[ \t]+")
-_RE_MULTI_NEWLINE = re.compile(r"\n{3,}")
+_DATE_CHAR_MAP = {
+    'О': '0', 'о': '0',
+    'З': '3',
+}
 
 
-# ---------------------------------------------------------------------------
-# Внутренние функции
-# ---------------------------------------------------------------------------
-
-def _replace_cyrillic(match: re.Match) -> str:
-    """Заменяет кириллические символы-заменители цифрами внутри совпадения."""
-    s = match.group(0)
-    for cyr, digit in _CYRILLIC_TO_DIGIT.items():
-        s = s.replace(cyr, digit)
-    return s
+def _fix_chars(match: re.Match, char_map: dict[str, str]) -> str:
+    result = match.group(0)
+    for wrong, correct in char_map.items():
+        result = result.replace(wrong, correct)
+    return result
 
 
-# ---------------------------------------------------------------------------
-# Публичный API
-# ---------------------------------------------------------------------------
-
-def clean_ocr_text(raw_text: str) -> str:
-    """Очищает сырой текст Tesseract OCR.
-
-    Исправляет кириллица→цифра (О→0, о→0, З→3) только внутри
-    дат и денежных сумм. Нормализует пробелы и пустые строки.
-
-    Args:
-        raw_text: строка из pytesseract.image_to_string().
-
-    Returns:
-        Очищенная строка для Balance Finder / Transaction Parser.
-    """
+def postprocess_ocr_text(raw_text: str) -> str:
+    """Clean raw OCR text: normalize whitespace and fix common OCR errors in amounts/dates."""
     text = raw_text
 
-    # 1. Даты: О1.ОЗ.2024 → 01.03.2024
-    text = _RE_DATE.sub(_replace_cyrillic, text)
+    # 1. Collapse multiple spaces/tabs (preserve newlines)
+    text = re.sub(r'[ \t]+', ' ', text)
 
-    # 2. Суммы: -1 25О,ОО → -1 250,00
-    text = _RE_AMOUNT.sub(_replace_cyrillic, text)
+    # 2. Collapse 3+ consecutive newlines to 2
+    text = re.sub(r'\n{3,}', '\n\n', text)
 
-    # 3. Множественные пробелы/табуляции → один пробел
-    text = _RE_MULTI_SPACE.sub(" ", text)
+    # 3. Fix OCR errors in amounts
+    text = _RE_AMOUNT.sub(lambda m: _fix_chars(m, _AMOUNT_CHAR_MAP), text)
 
-    # 4. 3+ пустых строк → 2
-    text = _RE_MULTI_NEWLINE.sub("\n\n", text)
+    # 4. Fix OCR errors in dates
+    text = _RE_DATE.sub(lambda m: _fix_chars(m, _DATE_CHAR_MAP), text)
 
     return text.strip()

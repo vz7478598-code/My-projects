@@ -1,0 +1,6 @@
+DB_PATH = "data/finance_history.db"
+HISTORY_MONTHS = 12
+MAX_CHART_CATEGORIES = 7
+ANOMALY_THRESHOLD = 500
+MAX_FILE_SIZE_MB = 10
+SUPPORTED_TYPES = ["pdf", "png", "jpeg"]
