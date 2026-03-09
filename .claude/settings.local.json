@@ -5,7 +5,16 @@
       "Bash(git add .gitignore)",
       "Bash(git commit:*)",
       "Bash(git add \"Документация ии/\" \"Документация этап 1/\" \"Инструкция начало .docx\")",
-      "Bash(git add .claude/)"
+      "Bash(git add .claude/)",
+      "Bash(python -m pytest tests/test_date_parser.py -v)",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(pip install pdfplumber==0.11.4 PyPDF2==3.0.1)",
+      "Bash(py --version)",
+      "Bash(py -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(python -m pip install pdfplumber==0.11.4 PyPDF2==3.0.1)",
+      "Bash(where python)",
+      "Bash(py -m pip install pytest --quiet)",
+      "Bash(xargs wc -l)"
     ]
   }
 }
